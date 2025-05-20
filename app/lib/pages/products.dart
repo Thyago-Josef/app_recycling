@@ -1,9 +1,11 @@
+import 'dart:core';
 import 'package:flutter/material.dart';
-import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
-import 'dart:io';
+import 'package:image_picker/image_picker.dart'; // Importe o plugin
 
 class SegundaPagina extends StatefulWidget {
-  const SegundaPagina({super.key});
+  const SegundaPagina({super.key, this.barcode, required this.produtos});
+  final String? barcode;
+  final List<Map<String, dynamic>> produtos; // Recebe a lista de produtos
 
   @override
   State<SegundaPagina> createState() => _SegundaPaginaState();
@@ -11,200 +13,96 @@ class SegundaPagina extends StatefulWidget {
 
 class _SegundaPaginaState extends State<SegundaPagina> {
   String _filtroSelecionado = 'Todos';
-  final List<Map<String, String>> _produtos = [
-    {'nome': 'Shampoo Hidratante', 'categoria': 'Cabelo', 'codigo_barras': '12345'},
-    {'nome': 'Condicionador Nutritivo', 'categoria': 'Cabelo', 'codigo_barras': '67890'},
-    {'nome': 'Máscara Capilar Reconstrutora', 'categoria': 'Cabelo', 'codigo_barras': '11223'},
-    {'nome': 'Base Líquida Matte', 'categoria': 'Maquiagem', 'codigo_barras': '44556'},
-    {'nome': 'Corretivo Alta Cobertura', 'categoria': 'Maquiagem', 'codigo_barras': '77889'},
-    {'nome': 'Paleta de Sombras Neutras', 'categoria': 'Maquiagem', 'codigo_barras': '99001'},
-    {'nome': 'Hidratante Facial Oil-Free', 'categoria': 'Pele', 'codigo_barras': '22334'},
-    {'nome': 'Protetor Solar FPS 50', 'categoria': 'Pele', 'codigo_barras': '55667'},
-    {'nome': 'Sérum Vitamina C', 'categoria': 'Pele', 'codigo_barras': '88990'},
-    {'nome': 'Óleo Capilar Reparador', 'categoria': 'Cabelo', 'codigo_barras': '33445'},
-    {'nome': 'Blush Compacto Rosado', 'categoria': 'Maquiagem', 'codigo_barras': '66778'},
-    {'nome': 'Tônico Facial Adstringente', 'categoria': 'Pele', 'codigo_barras': '99112'},
-  ];
 
-  List<Map<String, String>> get _produtosFiltrados {
+
+  List<Map<String, dynamic>> get _produtosFiltrados {
     if (_filtroSelecionado == 'Todos') {
-      return _produtos;
+      return widget.produtos; // Usa a lista recebida
     } else {
-      return _produtos
+      return widget.produtos
           .where((produto) => produto['categoria'] == _filtroSelecionado)
           .toList();
     }
   }
 
-  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
-  QRViewController? controller;
-  String barcodeScanRes = 'Aguardando leitura...';
-  bool _isCameraActive = false;
-
   @override
-  void reassemble() {
-    super.reassemble();
-    if (Platform.isAndroid && controller != null) {
-      controller!.pauseCamera();
-    }
-    if (_isCameraActive && controller != null) {
-      controller!.resumeCamera();
-    }
-  }
-
-  void _onQRViewCreated(QRViewController controller) {
-    setState(() {
-      this.controller = controller;
-    });
-    controller.scannedDataStream.listen((scanData) async {
-      setState(() {
-        barcodeScanRes = scanData.code ?? '---';
+  void initState() {
+    super.initState();
+    if (widget.barcode != null) {
+      // Use o contexto armazenado em MyHomePage
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _mostrarProdutoEncontrado();
       });
-
-      if (barcodeScanRes != '---') {
-        if (this.controller != null) {
-          _pauseCamera();
-        }
-
-        final produtoEncontrado = _produtos.firstWhere(
-              (produto) => produto['codigo_barras'] == barcodeScanRes,
-          orElse: () => {},
-        );
-
-        if (produtoEncontrado.isNotEmpty) {
-          _mostrarProdutoEncontrado(produtoEncontrado);
-        } else {
-          _mostrarOpcaoAdicionarProduto(barcodeScanRes);
-        }
-      }
-    });
-  }
-
-  void _startCamera() {
-    setState(() {
-      _isCameraActive = true;
-    });
-    if (controller != null) {
-      controller!.resumeCamera();
     }
   }
 
-  void _stopCamera() {
-    setState(() {
-      _isCameraActive = false;
-      barcodeScanRes = 'Aguardando leitura...';
-    });
-    if (controller != null) {
-      controller!.pauseCamera();
-    }
-  }
+  void _mostrarProdutoEncontrado() {
+    if (context != null) {
+      final produto = widget.produtos.firstWhere(
+            (element) => element['codigo_barras'] == widget.barcode,
+        orElse: () => {
+          'nome': 'Produto não encontrado',
+          'categoria': '',
+          'codigo_barras': '',
+          'notFound': true, // Adiciona um marcador para indicar que não foi encontrado
+        }, // Garante um retorno
+      );
 
-  void _pauseCamera() {
-    setState(() {
-      _isCameraActive = false;
-    });
-    if (controller != null) {
-      controller!.pauseCamera();
-    }
-  }
-
-  void _resumeCameraSeAtiva() { // UMA DAS DEFINIÇÕES
-    if (_isCameraActive && controller != null) {
-      controller!.resumeCamera();
-    }
-  }
-
-  void _mostrarProdutoEncontrado(Map<String, String> produto) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Produto Encontrado'),
-          content: Text('Nome: ${produto['nome']}\nCategoria: ${produto['categoria']}'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('OK'),
-              onPressed: () {
-                Navigator.of(context).pop();
-                _resumeCameraSeAtiva();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _mostrarOpcaoAdicionarProduto(String codigoBarras) {
-    TextEditingController nomeController = TextEditingController();
-    String categoriaSelecionada = 'Cabelo';
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Produto Não Encontrado'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Text('Código de barras: $codigoBarras'),
-              TextField(
-                controller: nomeController,
-                decoration: const InputDecoration(labelText: 'Nome do Produto'),
-              ),
-              DropdownButton<String>(
-                value: categoriaSelecionada,
-                items: <String>['Cabelo', 'Maquiagem', 'Pele']
-                    .map((String value) {
-                  return DropdownMenuItem<String>(
-                    value: value,
-                    child: Text(value),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    categoriaSelecionada = newValue;
-                  }
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Produto Encontrado'),
+            content: produto['notFound'] == true
+                ? const Text('Produto não encontrado. Deseja cadastrar?')
+                : Text('Nome: ${produto['nome']}\nCategoria: ${produto['categoria']}'),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('Não'),
+                onPressed: () {
+                  Navigator.of(context).pop();
                 },
               ),
-            ],
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancelar'),
-              onPressed: () {
-                Navigator.of(context).pop();
-                _resumeCameraSeAtiva();
-              },
-            ),
-            TextButton(
-              child: const Text('Adicionar'),
-              onPressed: () {
-                setState(() {
-                  _produtos.add({
-                    'nome': nomeController.text,
-                    'categoria': categoriaSelecionada,
-                    'codigo_barras': codigoBarras,
-                  });
-                });
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Produto adicionado!')),
-                );
-                _resumeCameraSeAtiva();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
+              if (produto['notFound'] == true) // Mostrar apenas se o produto não for encontrado
+                TextButton(
+                  child: const Text('Sim'),
+                  onPressed: () {
+                    // Navegar para a página de cadastro de produtos
+                    Navigator.of(context).pop(); // Fechar o diálogo
 
-  // A SEGUNDA DEFINIÇÃO (DUPLICADA) DE _resumeCameraSeAtiva() DEVE SER REMOVIDA
+                    // Envia para a página de cadastro e já passa o código de barras
+                    showDialog(
+                      context: context,
+                      builder: (context) => CadastroProdutoDialog(
+                        barcode: widget.barcode ??
+                            '', // Passa o código de barras para a página de cadastro
+                        onSave: (novoProduto) {
+                          // Lógica para salvar o produto no banco de dados
+                          setState(() {
+                            widget.produtos.add(novoProduto);
+                          });
+                        },
+                        onCancel: () {},
+                      ),
+                    );
+                  },
+                ),
+              if (produto['notFound'] != true)
+                TextButton(
+                  child: const Text('OK'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+            ],
+          );
+        },
+      );
+    }
+  }
 
   @override
   void dispose() {
-    controller?.dispose();
     super.dispose();
   }
 
@@ -221,6 +119,14 @@ class _SegundaPaginaState extends State<SegundaPagina> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _filtroSelecionado = 'Todos';
+                    });
+                  },
+                  child: const Text('Todos'),
+                ),
                 ElevatedButton(
                   onPressed: () {
                     setState(() {
@@ -252,53 +158,17 @@ class _SegundaPaginaState extends State<SegundaPagina> {
             child: ListView.builder(
               itemCount: _produtosFiltrados.length,
               itemBuilder: (context, index) {
-                final produto = _produtosFiltrados.elementAt(index);
+                final produto = _produtosFiltrados[index];
                 return Card(
                   margin: const EdgeInsets.all(8.0),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: Text(produto['nome']!),
+                    child: Text(produto['nome'] ?? 'Nome indisponível'),
                   ),
                 );
               },
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: ElevatedButton(
-              onPressed: _startCamera,
-              child: const Text('Ler Código de Barras'),
-            ),
-          ),
-          if (_isCameraActive)
-            Expanded(
-              flex: 1,
-              child: QRView(
-                key: qrKey,
-                onQRViewCreated: _onQRViewCreated,
-                overlay: QrScannerOverlayShape(
-                  borderColor: Colors.red,
-                  borderRadius: 10,
-                  borderLength: 30,
-                  borderWidth: 10,
-                  cutOutSize: 300,
-                ),
-              ),
-            ),
-          if (_isCameraActive)
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  Text('Código Lido: $barcodeScanRes'),
-                  ElevatedButton(
-                    onPressed: _stopCamera,
-                    child: const Text('Parar Leitura'),
-                  ),
-                ],
-              ),
-            ),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -319,6 +189,100 @@ class _SegundaPaginaState extends State<SegundaPagina> {
           }
         },
       ),
+    );
+  }
+}
+
+// Página de cadastro de produtos (exemplo)
+class CadastroProdutoDialog extends StatefulWidget {
+  final String barcode;
+  final Function(Map<String, dynamic>) onSave; // Modificado para receber um Map
+  final VoidCallback onCancel;
+  const CadastroProdutoDialog(
+      {super.key, required this.barcode, required this.onSave, required this.onCancel});
+
+  @override
+  _CadastroProdutoDialogState createState() => _CadastroProdutoDialogState();
+}
+
+class _CadastroProdutoDialogState extends State<CadastroProdutoDialog> {
+  final _nomeController = TextEditingController();
+  final _categoriaController = TextEditingController();
+  final _precoController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nomeController.dispose();
+    _categoriaController.dispose();
+    _precoController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Cadastrar Produto'),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Código de Barras: ${widget.barcode}'),
+            // Adicione campos para nome, categoria, etc.
+            TextField(
+              controller: _nomeController,
+              decoration: const InputDecoration(labelText: 'Nome do Produto'),
+            ),
+            TextField(
+              controller: _categoriaController,
+              decoration: const InputDecoration(labelText: 'Categoria'),
+            ),
+            TextField(
+              controller: _precoController,
+              decoration: const InputDecoration(labelText: 'Preço'),
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: widget.onCancel,
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: () {
+            // Lógica para salvar o produto no banco de dados
+            // Se isNewProduct for true, você pode adicionar uma lógica específica aqui
+            // Navigator.of(context).pop(); // Retorna à página anterior
+            // Aqui, você chamaria o onSave callback para notificar a MyHomePage
+            // que os dados foram salvos.  Você também pode passar os dados, se necessário.
+            final nome = _nomeController.text;
+            final categoria = _categoriaController.text;
+            final preco = _precoController.text;
+            if (nome.isNotEmpty && categoria.isNotEmpty && preco.isNotEmpty) {
+              // Validação dos dados
+              final novoProduto = {  // Cria um Map com os dados do produto
+                'nome': nome,
+                'categoria': categoria,
+                'codigo_barras': widget.barcode,
+                'preco': preco,
+                'imagens': <String>[], // Pode adicionar lógica para imagens depois
+              };
+              widget.onSave(novoProduto); // Chama o callback onSave e passa o Map
+              Navigator.of(context).pop();
+            } else {
+              // Exibir mensagem de erro
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Por favor, preencha todos os campos.'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          },
+          child: const Text('Salvar'),
+        ),
+      ],
     );
   }
 }
