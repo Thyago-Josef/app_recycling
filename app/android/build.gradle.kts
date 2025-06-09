@@ -23,3 +23,17 @@ subprojects {
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
+
+buildscript {
+    repositories {
+        // Adicione o repositório Maven do Google aqui
+        google()
+        // Você também pode adicionar o Maven Central se precisar de outras dependências
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.google.gms:google-services:4.4.1") // versão atual
+    }
+}
+
+
