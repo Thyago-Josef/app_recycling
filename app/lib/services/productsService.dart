@@ -1,13 +1,14 @@
 // lib/services/produto_api_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../model/productsModel.dart'; // Ajuste o caminho
+import '../models/product.dart'; // Ajuste o caminho
 
-class ProdutoApiService {
+
+class ProductsService {
   // Ajuste este URL para o endereço da sua API Java
   // Lembre-se: para emuladores Android, use '10.0.2.2' para acessar o localhost da sua máquina
   // Para emuladores iOS ou web, 'localhost' geralmente funciona
-  final String _baseUrl = 'http://192.168.0.7:8080/products'; // Exemplo para Spring Boot
+  final String _baseUrl = 'http://192.168.0.5:8080/products'; // Exemplo para Spring Boot
 
   // Cabeçalhos comuns para requisições JSON
   Map<String, String> get _headers => {
@@ -15,7 +16,7 @@ class ProdutoApiService {
   };
 
   // Método para buscar todos os produtos
-  Future<List<Produto>> getProdutos() async {
+  Future<List<Product>> getProdutos() async {
     try {
       print('DEBUG: Tentando buscar produtos da URL: $_baseUrl'); // Debug: URL
       final response = await http.get(Uri.parse(_baseUrl + "/all"));
@@ -25,7 +26,7 @@ class ProdutoApiService {
 
       if (response.statusCode == 200) {
         Iterable jsonResponse = json.decode(utf8.decode(response.bodyBytes));
-        return List<Produto>.from(jsonResponse.map((model) => Produto.fromJson(model)));
+        return List<Product>.from(jsonResponse.map((model) => Product.fromJson(model)));
       } else {
         throw Exception('Falha ao carregar produtos: ${response.statusCode} - ${response.body}');
       }
@@ -36,12 +37,12 @@ class ProdutoApiService {
   }
 
   // Método para buscar um produto pelo código de barras
-  Future<Produto?> getProdutoByCodigoBarras(String barcode) async {
+  Future<Product?> getProdutoByCodigoBarras(String barcode) async {
     try {
       final response = await http.get(Uri.parse('$_baseUrl/barcode/$barcode')); // Supondo um endpoint '/barcode/{codigoBarras}'
 
       if (response.statusCode == 200) {
-        return Produto.fromJson(json.decode(utf8.decode(response.bodyBytes)));
+        return Product.fromJson(json.decode(utf8.decode(response.bodyBytes)));
       } else if (response.statusCode == 404) {
         return null; // Produto não encontrado
       } else {
@@ -54,7 +55,7 @@ class ProdutoApiService {
   }
 
   // Método para criar um novo produto
-  Future<Produto> createProduto(Produto produto) async {
+  Future<Product> createProduto(Product produto) async {
     try {
       final response = await http.post(
         Uri.parse(_baseUrl + "/create"),
@@ -63,7 +64,7 @@ class ProdutoApiService {
       );
 
       if (response.statusCode == 201) { // 201 Created é o status comum para criação
-        return Produto.fromJson(json.decode(utf8.decode(response.bodyBytes)));
+        return Product.fromJson(json.decode(utf8.decode(response.bodyBytes)));
       } else {
         throw Exception('Falha ao criar produto: ${response.statusCode} - ${response.body}');
       }
@@ -74,7 +75,7 @@ class ProdutoApiService {
   }
 
   // Método para atualizar um produto
-  Future<Produto> updateProduto(Produto produto) async {
+  Future<Product> updateProduto(Product produto) async {
     if (produto.id == null) {
       throw Exception('ID do produto é necessário para atualização.');
     }
@@ -86,7 +87,7 @@ class ProdutoApiService {
       );
 
       if (response.statusCode == 200) {
-        return Produto.fromJson(json.decode(utf8.decode(response.bodyBytes)));
+        return Product.fromJson(json.decode(utf8.decode(response.bodyBytes)));
       } else {
         throw Exception('Falha ao atualizar produto: ${response.statusCode} - ${response.body}');
       }

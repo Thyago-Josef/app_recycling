@@ -1,11 +1,14 @@
+import 'dart:convert';
 import 'dart:core';
 import 'package:flutter/material.dart';
 import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-// import 'package:http/http.dart' as http; // Não é mais necessário importar http aqui
-import '../model/productsModel.dart'; // Importe seu modelo Produto
-import '../service/productsService.dart'; // Importe seu serviço de API
+import 'package:http/http.dart' as http; // Não é mais necessário importar http aqui
+import '../models/product.dart'; // Importe seu modelo Produto
+import '../services/productsService.dart'; // Importe seu serviço de API
+
+
 
 class SegundaPagina extends StatefulWidget {
   final bool startWithScanner;
@@ -24,12 +27,12 @@ class _SegundaPaginaState extends State<SegundaPagina> {
   int _scannerMode = 0; // 0: Lista de produtos, 1: Câmera do scanner
 
   // INSTÂNCIA DO SEU SERVIÇO DE API
-  final ProdutoApiService _produtoApiService = ProdutoApiService();
+  final ProductsService _produtoApiService = ProductsService();
 
   // Lista de produtos que será preenchida pela API
-  List<Produto> _produtos = [];
+  List<Product> _produtos = [];
   // Future para gerenciar o estado da requisição de produtos
-  late Future<List<Produto>> _futureProdutos;
+  late Future<List<Product>> _futureProdutos;
 
   @override
   void reassemble() {
@@ -52,16 +55,27 @@ class _SegundaPaginaState extends State<SegundaPagina> {
   }
 
   // Getter para produtos filtrados (agora da lista _produtos carregada da API)
-  List<Produto> get _produtosFiltrados {
+  List<Product> get _produtosFiltrados {
     if (_filtroSelecionado == 'Todos') {
       return _produtos;
     } else {
       return _produtos
-          .where((produto) => produto.categoria == _filtroSelecionado)
+          .where((produto) => produto.category == _filtroSelecionado)
           .toList();
     }
 
   }
+  //final String baseUrl = "http://localhost:8080"; // Ex: http://localhost:3000
+
+  // Future<List<Product>> fetchHighlightedProducts() async {
+  //   final response = await http.get(Uri.parse('$baseUrl/products/highlighted'));
+  //   if (response.statusCode == 200) {
+  //     final List data = json.decode(response.body);
+  //     return data.map((json) => Product.fromJson(json)).toList();
+  //   } else {
+  //     throw Exception('Erro ao carregar produtos');
+  //   }
+  // }
 
   void _activateScannerMode() {
     setState(() {
@@ -88,7 +102,7 @@ class _SegundaPaginaState extends State<SegundaPagina> {
     }
 
     try {
-      final Produto? produtoEncontrado = await _produtoApiService.getProdutoByCodigoBarras(barcode);
+      final Product? produtoEncontrado = await _produtoApiService.getProdutoByCodigoBarras(barcode);
 
       if (produtoEncontrado != null) {
         _mostrarProdutoEncontrado(produtoEncontrado);
@@ -132,13 +146,13 @@ class _SegundaPaginaState extends State<SegundaPagina> {
     });
   }
 
-  void _mostrarProdutoEncontrado(Produto produto) {
+  void _mostrarProdutoEncontrado(Product produto) {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: const Text('Produto Encontrado'),
-          content: Text('Nome: ${produto.nome}\nCategoria: ${produto.categoria}'),
+          content: Text('Nome: ${produto.name}\nCategoria: ${produto.category}'),
           actions: <Widget>[
             TextButton(
               child: const Text('OK'),
@@ -153,26 +167,26 @@ class _SegundaPaginaState extends State<SegundaPagina> {
     );
   }
 
-  void _mostrarDetalhesProduto(Produto produto) {
+  void _mostrarDetalhesProduto(Product produto) {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: Text(produto.nome),
+          title: Text(produto.name),
           content: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Categoria: ${produto.categoria}'),
+                Text('Categoria: ${produto.category}'),
                 Text('Código de Barras: ${produto.barcode}'),
-                if (produto.imagens.isNotEmpty) ...<Widget>[
+                if (produto.imageUrl.isNotEmpty) ...<Widget>[
                   const SizedBox(height: 16),
                   const Text('Imagens:'),
                   SizedBox(
                     height: 200,
                     child: PageView.builder(
-                      itemCount: produto.imagens.length,
+                      itemCount: produto.imageUrl.length,
                       itemBuilder: (context, index) {
                         // Se as imagens forem URLs, use Image.network
                         // Se as imagens forem paths locais (temporariamente), use Image.file
@@ -181,7 +195,7 @@ class _SegundaPaginaState extends State<SegundaPagina> {
                         return Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: Image.file(
-                            File(produto.imagens[index]),
+                            File(produto.imageUrl[index]),
                             fit: BoxFit.cover,
                           ),
                         );
@@ -189,7 +203,7 @@ class _SegundaPaginaState extends State<SegundaPagina> {
                     ),
                   ),
                 ],
-                if (produto.imagens.isEmpty)
+                if (produto.imageUrl.isEmpty)
                   const Text('Nenhuma imagem adicionada.'),
               ],
             ),
@@ -299,11 +313,13 @@ class _SegundaPaginaState extends State<SegundaPagina> {
                       }
                     }
 
-                    final novoProduto = Produto(
-                      nome: nomeController.text,
-                      categoria: categoriaSelecionada,
+                    final novoProduto = Product(
+                      name: nomeController.text,
+                      category: categoriaSelecionada,
                       barcode: codigoBarras,
-                      imagens: imagensPaths,
+                      imageUrl: imagensPaths.isNotEmpty ? imagensPaths.first : '',
+                      brand: "Sua Marca",
+                      rating: 0.0,
                     );
 
                     try {
@@ -448,7 +464,7 @@ class _SegundaPaginaState extends State<SegundaPagina> {
             ),
           ),
           Expanded(
-            child: FutureBuilder<List<Produto>>(
+            child: FutureBuilder<List<Product>>(
               future: _futureProdutos,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -466,8 +482,8 @@ class _SegundaPaginaState extends State<SegundaPagina> {
                       return Card(
                         margin: const EdgeInsets.all(8.0),
                         child: ListTile(
-                          title: Text(produto.nome),
-                          subtitle: Text(produto.categoria),
+                          title: Text(produto.name),
+                          subtitle: Text(produto.category),
                           trailing: const Icon(Icons.info),
                           onTap: () {
                             _mostrarDetalhesProduto(produto);

@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-    namespace = "com.cosmetic.app"
+    namespace = "com.example.app"
     compileSdk = flutter.compileSdkVersion
 //    ndkVersion = flutter.ndkVersion
     ndkVersion="27.0.12077973"
@@ -24,7 +24,8 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.cosmetic.app"
+        applicationId = "com.example.app"
+        //troquei o cosmetic por example
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         //minSdk = flutter.minSdkVersion
@@ -45,6 +46,12 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    implementation("androidx.core:core:1.12.0")
+    implementation("androidx.lifecycle:lifecycle-runtime:2.7.0")
+    implementation("androidx.activity:activity:1.8.2")
 }
 
 //apply plugin: 'com.google.gms.google-services'
